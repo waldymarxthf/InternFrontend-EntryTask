@@ -1,47 +1,87 @@
 <script lang="ts">
-  import svelteLogo from './assets/svelte.svg'
-  import viteLogo from '/vite.svg'
-  import Counter from './lib/Counter.svelte'
+  import { onMount } from "svelte";
+  import { CURRENCIES } from "./lib/constants";
+  import { fetchExchangeRate } from "./api/getExсhangeRate";
+
+  let selectedCurrencyFirst = "USD";
+  let selectedCurrencySecond = "EUR";
+  
+  let firstAmount = "0";
+  let secondAmount = "0";
+
+  let conversionRate = 1;
+
+  function roundIfNeeded(num) {
+    const rounded = Math.round(num * 100) / 100;
+    return rounded === Math.floor(rounded)
+      ? rounded.toFixed(0)
+      : rounded.toFixed(3);
+  }
+
+  async function updateConversionRate() {
+    try {
+      const rate = await fetchExchangeRate(
+        selectedCurrencyFirst,
+        selectedCurrencySecond
+      );
+      conversionRate = rate;
+    } catch (error) {
+      console.error("Failed to fetch exchange rate:", error);
+      conversionRate = 1;
+    }
+  }
+
+  function convertAmount1to2() {
+    if (firstAmount !== "") {
+      secondAmount = roundIfNeeded(+firstAmount * conversionRate).toString();
+    } else {
+      secondAmount = "";
+    }
+  }
+
+  function convertAmount2to1() {
+    if (secondAmount !== "") {
+      firstAmount = roundIfNeeded(+secondAmount / conversionRate).toString();
+    } else {
+      firstAmount = "";
+    }
+  }
+
+  onMount(async () => {
+    await updateConversionRate();
+    convertAmount1to2();
+  });
+
+  $: updateConversionRate(), selectedCurrencyFirst, selectedCurrencySecond;
+  $: convertAmount1to2(), firstAmount, conversionRate;
+  $: convertAmount2to1(), secondAmount, conversionRate;
 </script>
 
-<main>
-  <div>
-    <a href="https://vitejs.dev" target="_blank" rel="noreferrer">
-      <img src={viteLogo} class="logo" alt="Vite Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank" rel="noreferrer">
-      <img src={svelteLogo} class="logo svelte" alt="Svelte Logo" />
-    </a>
-  </div>
-  <h1>Vite + Svelte</h1>
+<form>
+  <select bind:value={selectedCurrencyFirst}>
+    {#each CURRENCIES as currency}
+      <option value={currency}>{currency}</option>
+    {/each}
+  </select>
+  <input
+    type="number"
+    bind:value={firstAmount}
+    on:input={() => convertAmount1to2()}
+    placeholder="Amount in {selectedCurrencyFirst}"
+  />
 
-  <div class="card">
-    <Counter />
-  </div>
-
-  <p>
-    Check out <a href="https://github.com/sveltejs/kit#readme" target="_blank" rel="noreferrer">SvelteKit</a>, the official Svelte app framework powered by Vite!
-  </p>
-
-  <p class="read-the-docs">
-    Click on the Vite and Svelte logos to learn more
-  </p>
-</main>
+  <select bind:value={selectedCurrencySecond}>
+    {#each CURRENCIES as currency}
+      <option value={currency}>{currency}</option>
+    {/each}
+  </select>
+  <input
+    type="number"
+    bind:value={secondAmount}
+    on:input={() => convertAmount2to1()}
+    placeholder="Amount in {selectedCurrencySecond}"
+  />
+</form>
 
 <style>
-  .logo {
-    height: 6em;
-    padding: 1.5em;
-    will-change: filter;
-    transition: filter 300ms;
-  }
-  .logo:hover {
-    filter: drop-shadow(0 0 2em #646cffaa);
-  }
-  .logo.svelte:hover {
-    filter: drop-shadow(0 0 2em #ff3e00aa);
-  }
-  .read-the-docs {
-    color: #888;
-  }
 </style>
